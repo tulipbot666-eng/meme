@@ -135,7 +135,16 @@ pre{background:var(--s2);border:1px solid var(--border);border-radius:6px;paddin
     <div class="chosen-file" id="chosenFile"></div>
   </label>
 
-  <div style="margin-top:20px;display:flex;gap:10px;align-items:center">
+  <div style="margin-top:16px;display:flex;gap:8px;align-items:center">
+    <span style="font-size:11px;font-family:'Space Mono',monospace;color:var(--muted)">Idioma da música:</span>
+    <select id="musicLang" style="background:var(--s3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-family:'Space Mono',monospace;font-size:11px">
+      <option value="auto">🌐 Detectar automaticamente</option>
+      <option value="en">🇺🇸 Inglês</option>
+      <option value="pt">🇧🇷 Português</option>
+      <option value="es">🇪🇸 Espanhol</option>
+    </select>
+  </div>
+  <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
     <button class="btn btn-green" id="btnTranscribe" onclick="startTranscription()" disabled>
       <span>▶ Transcrever</span>
     </button>
@@ -219,6 +228,11 @@ pre{background:var(--s2);border:1px solid var(--border);border-radius:6px;paddin
 
 <script>
 const PROXY = ''; // chama /api/... que o server.py repassa pra AssemblyAI
+function buildTranscriptPayload(audio_url) {
+  const lang = document.getElementById('musicLang').value;
+  if (lang === 'auto') return { audio_url, language_detection: true, speech_models: ['universal-2'] };
+  return { audio_url, language_code: lang, speech_models: ['universal-2'] };
+}
 let audioFile = null;
 let transcriptData = null; // { words: [{text, start, end}], full_text }
 let origSyllables = []; // [{text, start, end, wordText}]
@@ -309,7 +323,7 @@ async function startTranscription() {
     const tRes = await fetch('/api/v2/transcript', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ audio_url: upload_url, language_detection: true, speech_models: ['universal-2'] })
+      body: JSON.stringify(buildTranscriptPayload(upload_url))
     });
 
     if (!tRes.ok) {

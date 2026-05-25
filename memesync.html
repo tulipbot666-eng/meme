@@ -214,6 +214,7 @@ pre{background:var(--s2);border:1px solid var(--border);border-radius:6px;paddin
       <button class="btn btn-green" onclick="copyText()">📋 Copiar texto</button>
       <button class="btn btn-blue" onclick="downloadSRT()">⬇ Baixar .SRT (legendas)</button>
       <button class="btn btn-yellow" onclick="downloadCSV()">⬇ Baixar .CSV</button>
+      <button class="btn btn-green" onclick="downloadVegasJS()" style="background:#c678dd;color:#fff">🎬 Baixar script Vegas 17 (.js)</button>
       <button class="btn btn-outline" onclick="goToEditor()">← Editar meme</button>
     </div>
   </div>
@@ -655,6 +656,95 @@ function copyText() {
 function downloadSRT() {
   const content = document.getElementById('exportSRT').textContent;
   download('meme_sync.srt', content, 'text/plain');
+}
+
+function downloadVegasJS() {
+  const srtContent = document.getElementById('exportSRT').textContent.trim();
+  if (!srtContent) { alert('Gera o export primeiro!'); return; }
+
+  // Parse do SRT
+  const entries = [];
+  const blocks = srtContent.split(/\n\s*\n/);
+  for (const block of blocks) {
+    const lines = block.trim().split('\n');
+    if (lines.length < 3) continue;
+    const match = lines[1].match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+    if (!match) continue;
+    const start = (+match[1]*3600 + +match[2]*60 + +match[3]) + +match[4]/1000;
+    const end   = (+match[5]*3600 + +match[6]*60 + +match[7]) + +match[8]/1000;
+    const text  = lines.slice(2).join(' ').trim().replace(/"/g, '\\"');
+    entries.push({ start, end, text });
+  }
+
+  if (!entries.length) { alert('Nenhuma entrada no SRT!'); return; }
+
+  let js = `// MemeSync — Script para Vegas Pro 17
+// ${entries.length} sílabas geradas automaticamente
+// Como usar: Tools → Scripting → Run Script → selecione este arquivo
+
+import Sony.Vegas;
+import System;
+import System.Drawing;
+import System.Windows.Forms;
+
+var proj = Vegas.Project;
+var fps  = proj.Video.FrameRate;
+
+// Cria faixa MemeSync (ou reutiliza existente)
+var track = null;
+for (var ti = 0; ti < proj.Tracks.Count; ti++) {
+  if (proj.Tracks[ti].Name == "MemeSync") { track = proj.Tracks[ti]; break; }
+}
+if (track == null) {
+  track = new VideoTrack();
+  track.Name = "MemeSync";
+  proj.Tracks.Add(track);
+}
+
+`;
+
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const dur = Math.max(e.end - e.start, 0.04).toFixed(4);
+    js += `// ${i+1}: ${e.text}
+{
+  var startTc = Timecode.FromSeconds(${e.start.toFixed(4)}, fps);
+  var durTc   = Timecode.FromSeconds(${dur}, fps);
+  var ev      = new VideoEvent(startTc, durTc);
+  var genID   = new Guid("{Svfx:com.sony.title}");
+  var gen     = MediaGenerators.FindByUniqueID(genID.ToString());
+  if (gen != null) {
+    var media   = gen.GenerateMedia(durTc);
+    var ostream = media.Streams[0];
+    var effect  = ostream.Effects[0];
+    if (effect != null) {
+      var param = effect.OFXEffect;
+      if (param != null) {
+        param["Text"].Value           = "${e.text}";
+        param["FontName"].Value       = "Arial Black";
+        param["FontSize"].Value       = 80;
+        param["Bold"].Value           = true;
+        param["Color"].Value          = new OFXRGBAColor(1.0, 1.0, 1.0, 1.0);
+        param["OutlineEnable"].Value  = true;
+        param["OutlineColor"].Value   = new OFXRGBAColor(0.0, 0.0, 0.0, 1.0);
+        param["OutlineWidth"].Value   = 4;
+        param["Location"].Value       = new OFXDouble2D(0.5, 0.8);
+        param["Alignment"].Value      = 5;
+      }
+    }
+    ev.AddTake(new Take(ostream));
+  }
+  track.Events.Add(ev);
+}
+
+`;
+  }
+
+  js += `Vegas.UpdateUI();
+MessageBox.Show("MemeSync: ${entries.length} eventos criados na faixa 'MemeSync'!", "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
+`;
+
+  download('memesync_vegas17.js', js, 'text/plain');
 }
 
 function downloadCSV() {

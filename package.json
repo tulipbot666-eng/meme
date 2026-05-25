@@ -1,0 +1,9 @@
+{
+  "name": "memesync",
+  "version": "1.0.0",
+  "description": "Sincronizador de memes musicais",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

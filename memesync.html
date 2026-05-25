@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MemeSync 🎵</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080808;--s1:#111111;--s2:#191919;--s3:#222222;
+  --border:#2c2c2c;--text:#e8e8e8;--muted:#666;--dim:#999;
+  --green:#00e676;--yellow:#ffe033;--blue:#29b6f6;--red:#ff5252;
+}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh}
+header{display:flex;align-items:center;gap:12px;padding:14px 24px;background:var(--s1);border-bottom:1px solid var(--border)}
+.logo{font-size:18px;font-weight:800;letter-spacing:-0.5px}
+.logo span{color:var(--green)}
+.badge{font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);background:var(--s3);padding:2px 8px;border-radius:3px;border:1px solid var(--border)}
+main{padding:24px;max-width:1100px;margin:0 auto}
+h2{font-size:16px;font-weight:700;margin-bottom:4px}
+.sub{font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;margin-bottom:20px}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:56px 32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--s1);margin-top:8px}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--green);background:rgba(0,230,118,.04)}
+.upload-zone input{display:none}
+.upload-icon{font-size:44px;margin-bottom:14px}
+.upload-title{font-size:17px;font-weight:700;margin-bottom:6px}
+.upload-hint{font-size:12px;color:var(--muted);font-family:'Space Mono',monospace}
+.chosen-file{margin-top:16px;font-size:13px;color:var(--green);font-family:'Space Mono',monospace}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:6px;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;border:none;text-transform:uppercase;letter-spacing:.5px;transition:all .15s}
+.btn-green{background:var(--green);color:#000}
+.btn-green:hover{background:#2dffa0}
+.btn-green:disabled{background:#1a4a30;color:#3a8a5a;cursor:not-allowed}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-outline:hover{background:var(--s3)}
+.btn-yellow{background:var(--yellow);color:#000}
+.btn-yellow:hover{background:#ffe966}
+.btn-blue{background:var(--blue);color:#000}
+.btn-blue:hover{background:#5acfff}
+
+/* PROGRESS */
+.progress-box{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:28px;margin-top:8px}
+.progress-label{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:10px}
+.bar-bg{background:var(--s3);border-radius:4px;height:5px;overflow:hidden}
+.bar-fill{height:100%;background:var(--green);border-radius:4px;transition:width .4s ease;width:0%}
+.progress-status{font-size:12px;color:var(--dim);margin-top:8px;font-family:'Space Mono',monospace}
+
+/* WORDS */
+.words-wrap{display:flex;flex-wrap:wrap;gap:6px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;max-height:180px;overflow-y:auto}
+.wchip{display:flex;flex-direction:column;align-items:center;background:var(--s2);border:1px solid var(--border);border-radius:5px;padding:5px 10px;cursor:default}
+.wchip .wt{font-size:13px;font-weight:600}
+.wchip .ws{font-family:'Space Mono',monospace;font-size:9px;color:var(--green);margin-top:2px}
+
+/* PANELS */
+.panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.panel{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px}
+.panel-label{font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+textarea{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Syne',sans-serif;font-size:14px;padding:12px;resize:vertical;outline:none;transition:border .2s;min-height:110px}
+textarea:focus{border-color:var(--green)}
+
+/* ALIGN TABLE */
+.align-wrap{margin-top:20px;background:var(--s1);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.align-head{display:grid;grid-template-columns:1fr 150px 1fr;background:var(--s2);border-bottom:1px solid var(--border);padding:10px 16px;gap:8px}
+.align-head>div{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.align-head>div:nth-child(2){text-align:center}
+.align-head>div:nth-child(3){text-align:right}
+.align-rows{max-height:320px;overflow-y:auto}
+.align-row{display:grid;grid-template-columns:1fr 150px 1fr;gap:8px;padding:9px 16px;border-bottom:1px solid rgba(44,44,44,.5);align-items:center;transition:background .15s}
+.align-row:hover{background:var(--s2)}
+.align-row:last-child{border-bottom:none}
+.orig-syll{font-size:14px;font-weight:600;color:var(--blue)}
+.time-cell{text-align:center;font-family:'Space Mono',monospace;font-size:11px;color:var(--green)}
+.meme-syll{font-size:14px;font-weight:700;color:var(--yellow);text-align:right}
+.unmatched{color:var(--muted);font-style:italic;font-weight:400}
+
+/* EXPORT */
+.export-box{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:18px;margin-top:16px}
+.export-label{font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+pre{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:14px;font-family:'Space Mono',monospace;font-size:11px;color:var(--dim);overflow-x:auto;max-height:280px;overflow-y:auto;white-space:pre;line-height:1.7}
+.btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.section{display:none}
+.section.on{display:block}
+
+/* STATS */
+.stats{display:flex;gap:12px;margin-top:12px;flex-wrap:wrap}
+.stat{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:10px 16px;flex:1;min-width:120px}
+.stat-v{font-size:22px;font-weight:800;color:var(--green)}
+.stat-l{font-size:11px;color:var(--muted);font-family:'Space Mono',monospace;margin-top:2px}
+
+/* MISMATCH WARNING */
+.warn{background:rgba(255,82,82,.08);border:1px solid rgba(255,82,82,.3);border-radius:6px;padding:10px 14px;font-size:12px;color:#ff8a80;font-family:'Space Mono',monospace;margin-top:10px}
+.ok-badge{background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);border-radius:6px;padding:10px 14px;font-size:12px;color:var(--green);font-family:'Space Mono',monospace;margin-top:10px}
+
+/* STEP INDICATOR */
+.steps{display:flex;padding:0 24px;background:var(--s1);border-bottom:1px solid var(--border);gap:0}
+.step{padding:11px 16px;font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s}
+.step.active{color:var(--green);border-bottom-color:var(--green)}
+.step.done{color:var(--dim)}
+
+/* SPINNER */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Meme<span>Sync</span></div>
+  <div class="badge">v1.0 — Vegas Pro Edition</div>
+</header>
+
+<div class="steps">
+  <div class="step active" id="step1">01 / Upload</div>
+  <div class="step" id="step2">02 / Transcrição</div>
+  <div class="step" id="step3">03 / Meme</div>
+  <div class="step" id="step4">04 / Export</div>
+</div>
+
+<main>
+
+<!-- SECTION 1: UPLOAD -->
+<div class="section on" id="sec-upload">
+  <h2>Upload da música</h2>
+  <div class="sub">Arrasta o MP3 ou clica pra escolher — AssemblyAI vai transcrever com timestamps</div>
+
+  <div class="upload-zone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+    <input type="file" id="fileInput" accept="audio/*">
+    <div class="upload-icon">🎵</div>
+    <div class="upload-title">Arrasta o áudio aqui</div>
+    <div class="upload-hint">MP3, WAV, M4A, OGG — qualquer áudio funciona</div>
+    <div class="chosen-file" id="chosenFile"></div>
+  </div>
+
+  <div style="margin-top:20px;display:flex;gap:10px;align-items:center">
+    <button class="btn btn-green" id="btnTranscribe" onclick="startTranscription()" disabled>
+      <span>▶ Transcrever</span>
+    </button>
+    <span style="font-size:12px;color:var(--muted);font-family:'Space Mono',monospace">Powered by AssemblyAI</span>
+  </div>
+</div>
+
+<!-- SECTION 2: TRANSCRIPTION PROGRESS -->
+<div class="section" id="sec-progress">
+  <h2>Transcrevendo...</h2>
+  <div class="sub">Aguenta — isso leva uns 30-60 segundos dependendo da duração</div>
+
+  <div class="progress-box">
+    <div class="progress-label" id="progLabel">Fazendo upload do áudio...</div>
+    <div class="bar-bg"><div class="bar-fill" id="progBar"></div></div>
+    <div class="progress-status" id="progStatus">Iniciando...</div>
+  </div>
+</div>
+
+<!-- SECTION 3: MEME EDITOR -->
+<div class="section" id="sec-editor">
+  <h2>Letra original ↔ Seu meme</h2>
+  <div class="sub">Escreve o texto do meme — o sistema vai alinhar silabicamente com a música</div>
+
+  <div id="wordsDisplay" class="words-wrap" style="margin-top:8px"></div>
+
+  <div class="stats" id="statsBar"></div>
+
+  <div class="panel-grid">
+    <div class="panel">
+      <div class="panel-label">🎵 Letra original (transcrita)</div>
+      <div id="origTextDisplay" style="font-size:14px;line-height:1.8;color:var(--dim)"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">😂 Seu texto do meme</div>
+      <textarea id="memeText" placeholder="Digite aqui o texto do meme...&#10;&#10;Ex: Eu comi a galinha do vizinho hoje de manhã" oninput="updateAlignment()"></textarea>
+      <div style="margin-top:8px;font-size:11px;font-family:'Space Mono',monospace;color:var(--muted)" id="syllCount"></div>
+    </div>
+  </div>
+
+  <div id="matchWarning"></div>
+
+  <div class="align-wrap" id="alignTable" style="display:none">
+    <div class="align-head">
+      <div>🎵 Original</div>
+      <div>⏱ Timestamp</div>
+      <div style="text-align:right">😂 Meme</div>
+    </div>
+    <div class="align-rows" id="alignRows"></div>
+  </div>
+
+  <div style="margin-top:20px;display:flex;gap:10px">
+    <button class="btn btn-yellow" onclick="showExport()">📤 Gerar Export Vegas Pro</button>
+    <button class="btn btn-outline" onclick="goBack()">← Voltar</button>
+  </div>
+</div>
+
+<!-- SECTION 4: EXPORT -->
+<div class="section" id="sec-export">
+  <h2>Export para Vegas Pro</h2>
+  <div class="sub">Cole os timestamps como referência enquanto corta no Vegas</div>
+
+  <div class="export-box">
+    <div class="export-label">📋 Guia de cortes — Texto referência</div>
+    <pre id="exportText"></pre>
+    <div class="btn-row">
+      <button class="btn btn-green" onclick="copyText()">📋 Copiar texto</button>
+      <button class="btn btn-blue" onclick="downloadSRT()">⬇ Baixar .SRT (legendas)</button>
+      <button class="btn btn-yellow" onclick="downloadCSV()">⬇ Baixar .CSV</button>
+      <button class="btn btn-outline" onclick="goToEditor()">← Editar meme</button>
+    </div>
+  </div>
+
+  <div class="export-box" style="margin-top:12px">
+    <div class="export-label">📺 Formato SRT (importar como legenda no Vegas)</div>
+    <pre id="exportSRT"></pre>
+  </div>
+</div>
+
+</main>
+
+<script>
+const PROXY = ''; // chama /api/... que o server.py repassa pra AssemblyAI
+let audioFile = null;
+let transcriptData = null; // { words: [{text, start, end}], full_text }
+let origSyllables = []; // [{text, start, end, wordText}]
+
+// ──────────────────────────────────────────────
+// FILE HANDLING
+// ──────────────────────────────────────────────
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) setFile(f);
+});
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) setFile(e.target.files[0]);
+});
+
+function setFile(f) {
+  audioFile = f;
+  document.getElementById('chosenFile').textContent = '✓ ' + f.name + ' (' + (f.size/1024/1024).toFixed(1) + ' MB)';
+  document.getElementById('btnTranscribe').disabled = false;
+}
+
+// ──────────────────────────────────────────────
+// STEP NAVIGATION
+// ──────────────────────────────────────────────
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+function setStep(n) {
+  ['step1','step2','step3','step4'].forEach((s,i) => {
+    const el = document.getElementById(s);
+    el.className = 'step' + (i+1 === n ? ' active' : i+1 < n ? ' done' : '');
+  });
+}
+function goBack() { showSection('sec-upload'); setStep(1); }
+function goToEditor() { showSection('sec-editor'); setStep(3); }
+
+// ──────────────────────────────────────────────
+// ASSEMBLYAI TRANSCRIPTION
+// ──────────────────────────────────────────────
+async function startTranscription() {
+  if (!audioFile) return;
+  showSection('sec-progress');
+  setStep(2);
+  setProgress(10, 'Lendo arquivo de áudio...');
+
+  try {
+    // Read file as ArrayBuffer first
+    const arrayBuffer = await audioFile.arrayBuffer();
+    setProgress(15, 'Fazendo upload do áudio para AssemblyAI...');
+
+    // 1. Upload — send raw bytes, no extra headers to avoid CORS preflight issues
+    let uploadRes;
+    try {
+      uploadRes = await fetch('/api/v2/upload', {
+        method: 'POST',
+        ,
+        body: arrayBuffer
+      });
+    } catch (fetchErr) {
+      throw new Error(
+        'CORS/Rede bloqueou o upload. Tente abrir o arquivo via servidor local:\n' +
+        '1. Abra o terminal na pasta do arquivo\n' +
+        '2. Execute: python -m http.server 8080\n' +
+        '3. Acesse: http://localhost:8080/memesync.html\n\n' +
+        'Detalhe: ' + fetchErr.message
+      );
+    }
+
+    if (!uploadRes.ok) {
+      const errBody = await uploadRes.text();
+      throw new Error(`Upload falhou (HTTP ${uploadRes.status}): ${errBody}`);
+    }
+
+    const uploadJson = await uploadRes.json();
+    const upload_url = uploadJson.upload_url;
+    if (!upload_url) throw new Error('AssemblyAI não retornou URL de upload. Resposta: ' + JSON.stringify(uploadJson));
+    setProgress(35, 'Upload completo! Solicitando transcrição...');
+
+    // 2. Request transcript
+    const tRes = await fetch('/api/v2/transcript', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ audio_url: upload_url, language_detection: true })
+    });
+
+    if (!tRes.ok) {
+      const errBody = await tRes.text();
+      throw new Error(`Transcrição falhou (HTTP ${tRes.status}): ${errBody}`);
+    }
+
+    const tJson = await tRes.json();
+    const id = tJson.id;
+    if (!id) throw new Error('Sem ID de transcrição. Resposta: ' + JSON.stringify(tJson));
+    setProgress(40, 'Transcrição em andamento — aguenta...');
+
+    // 3. Poll
+    let result;
+    for (let i = 0; i < 120; i++) {
+      await sleep(3000);
+      const r = await fetch(`/api/v2/transcript/${id}`, {
+        
+      });
+      result = await r.json();
+      setProgress(40 + Math.min(i * 0.5, 55), `Status: ${result.status} — ${i+1}ª tentativa...`);
+      if (result.status === 'completed') break;
+      if (result.status === 'error') throw new Error('AssemblyAI retornou erro: ' + result.error);
+    }
+
+    if (!result || result.status !== 'completed') throw new Error('Timeout — a transcrição demorou demais. Tente um arquivo menor.');
+    setProgress(100, 'Transcrição concluída! ✓');
+    await sleep(500);
+
+    transcriptData = result;
+    buildOrigSyllables();
+    renderEditor();
+    showSection('sec-editor');
+    setStep(3);
+
+  } catch (err) {
+    setProgress(0, '');
+    document.getElementById('progLabel').style.color = '#ff5252';
+    document.getElementById('progLabel').textContent = '❌ ' + err.message;
+    document.getElementById('progStatus').innerHTML = '<button class="btn btn-outline" style="margin-top:12px;font-size:11px" onclick="goBack()">← Tentar novamente</button>';
+  }
+}
+
+function setProgress(pct, status) {
+  document.getElementById('progBar').style.width = pct + '%';
+  document.getElementById('progLabel').textContent = status;
+  document.getElementById('progStatus').textContent = pct.toFixed(0) + '%';
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ──────────────────────────────────────────────
+// SYLLABLE ENGINE
+// ──────────────────────────────────────────────
+function syllabifyWord(word) {
+  const clean = word.toLowerCase().replace(/[^a-záàâãéèêíìîóòôõuúùûçü]/g, '');
+  if (!clean) return [word];
+  const vowels = new Set('aáàâãeéèêiíìîoóòôõuúùûç'.split(''));
+  const isV = c => vowels.has(c);
+
+  const vi = [];
+  for (let i = 0; i < clean.length; i++) if (isV(clean[i])) vi.push(i);
+  if (vi.length <= 1) return [clean];
+
+  const diphthongs = new Set(['ai','ei','oi','ui','au','eu','ou','ia','ie','io','iu','ua','ue','uo','ao','ãe','ão','õe']);
+  const splits = [];
+
+  for (let i = 0; i < vi.length - 1; i++) {
+    const v1 = vi[i], v2 = vi[i+1];
+    const gap = v2 - v1 - 1;
+    if (gap === 0) {
+      const pair = clean[v1] + clean[v2];
+      if (!diphthongs.has(pair)) splits.push(v2);
+    } else if (gap === 1) {
+      splits.push(v1 + 1); // V-CV → split before C
+    } else if (gap === 2) {
+      splits.push(v1 + 2); // V-CCV → VC-CV
+    } else {
+      splits.push(v1 + Math.ceil(gap / 2) + 1);
+    }
+  }
+
+  const sylls = [];
+  let start = 0;
+  for (const s of splits) {
+    if (s > start) sylls.push(clean.slice(start, s));
+    start = s;
+  }
+  sylls.push(clean.slice(start));
+  return sylls.filter(Boolean);
+}
+
+function syllabifyText(text) {
+  return text.trim().split(/\s+/).flatMap(w => syllabifyWord(w));
+}
+
+function countSyllables(text) {
+  return syllabifyText(text).length;
+}
+
+// ──────────────────────────────────────────────
+// BUILD ORIGINAL SYLLABLES WITH TIMESTAMPS
+// ──────────────────────────────────────────────
+function buildOrigSyllables() {
+  origSyllables = [];
+  if (!transcriptData || !transcriptData.words) return;
+
+  for (const word of transcriptData.words) {
+    const sylls = syllabifyWord(word.text);
+    const dur = (word.end - word.start) / sylls.length;
+    sylls.forEach((s, i) => {
+      origSyllables.push({
+        text: s,
+        wordText: word.text,
+        start: Math.round(word.start + dur * i),
+        end: Math.round(word.start + dur * (i + 1))
+      });
+    });
+  }
+}
+
+// ──────────────────────────────────────────────
+// RENDER EDITOR
+// ──────────────────────────────────────────────
+function renderEditor() {
+  // Word chips
+  const wrap = document.getElementById('wordsDisplay');
+  wrap.innerHTML = '';
+  (transcriptData.words || []).forEach(w => {
+    const chip = document.createElement('div');
+    chip.className = 'wchip';
+    chip.innerHTML = `<div class="wt">${w.text}</div><div class="ws">${msToTime(w.start)}</div>`;
+    wrap.appendChild(chip);
+  });
+
+  // Stats
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat"><div class="stat-v">${transcriptData.words?.length || 0}</div><div class="stat-l">palavras</div></div>
+    <div class="stat"><div class="stat-v">${origSyllables.length}</div><div class="stat-l">sílabas orig.</div></div>
+    <div class="stat"><div class="stat-v">${msToTime(transcriptData.audio_duration ? transcriptData.audio_duration * 1000 : (transcriptData.words?.at(-1)?.end || 0))}</div><div class="stat-l">duração</div></div>
+  `;
+
+  // Original text
+  document.getElementById('origTextDisplay').textContent = transcriptData.text || '';
+}
+
+// ──────────────────────────────────────────────
+// ALIGNMENT
+// ──────────────────────────────────────────────
+function updateAlignment() {
+  const meme = document.getElementById('memeText').value.trim();
+  if (!meme) {
+    document.getElementById('alignTable').style.display = 'none';
+    document.getElementById('syllCount').textContent = '';
+    document.getElementById('matchWarning').innerHTML = '';
+    return;
+  }
+
+  const memeSylls = syllabifyText(meme);
+  const origLen = origSyllables.length;
+  const memeLen = memeSylls.length;
+
+  document.getElementById('syllCount').textContent = `${memeLen} sílabas no meme / ${origLen} na música`;
+
+  // Warning
+  const diff = memeLen - origLen;
+  if (Math.abs(diff) > 3) {
+    document.getElementById('matchWarning').innerHTML = diff > 0
+      ? `<div class="warn">⚠ Seu meme tem ${diff} sílaba(s) a mais que a música. Tente encurtar ou vai ficar fora do ritmo.</div>`
+      : `<div class="warn">⚠ Seu meme tem ${Math.abs(diff)} sílaba(s) a menos. Tente adicionar mais sílabas.</div>`;
+  } else {
+    document.getElementById('matchWarning').innerHTML = `<div class="ok-badge">✓ Contagem próxima! Diff: ${diff > 0 ? '+' : ''}${diff} sílabas — tá bom pra encaixar</div>`;
+  }
+
+  // Build alignment
+  const totalRows = Math.max(origLen, memeLen);
+  const rows = document.getElementById('alignRows');
+  rows.innerHTML = '';
+
+  for (let i = 0; i < totalRows; i++) {
+    const orig = origSyllables[i];
+    const memeSyll = memeSylls[i];
+
+    const row = document.createElement('div');
+    row.className = 'align-row';
+
+    const origCell = orig
+      ? `<div class="orig-syll">${orig.text}<span style="font-size:10px;color:var(--muted);margin-left:4px;font-family:'Space Mono',monospace">(${orig.wordText})</span></div>`
+      : `<div class="orig-syll unmatched">—</div>`;
+
+    const timeCell = orig
+      ? `<div class="time-cell">${msToTime(orig.start)} → ${msToTime(orig.end)}</div>`
+      : `<div class="time-cell" style="color:var(--muted)">—</div>`;
+
+    const memeCell = memeSyll
+      ? `<div class="meme-syll">${memeSyll.toUpperCase()}</div>`
+      : `<div class="meme-syll unmatched">—</div>`;
+
+    row.innerHTML = origCell + timeCell + memeCell;
+    rows.appendChild(row);
+  }
+
+  document.getElementById('alignTable').style.display = 'block';
+}
+
+// ──────────────────────────────────────────────
+// EXPORT
+// ──────────────────────────────────────────────
+function showExport() {
+  const meme = document.getElementById('memeText').value.trim();
+  if (!meme) { alert('Escreve o texto do meme antes de exportar!'); return; }
+
+  const memeSylls = syllabifyText(meme);
+  const totalRows = Math.max(origSyllables.length, memeSylls.length);
+
+  // Text export
+  let txt = 'MEMESYNC — GUIA DE CORTES PARA VEGAS PRO\n';
+  txt += '='.repeat(50) + '\n';
+  txt += `Música transcrita: ${transcriptData.text?.substring(0,80)}...\n`;
+  txt += `Meme: ${meme}\n`;
+  txt += '='.repeat(50) + '\n\n';
+  txt += 'INÍCIO    →  FIM       | ORIG    | MEME\n';
+  txt += '-'.repeat(50) + '\n';
+
+  for (let i = 0; i < totalRows; i++) {
+    const orig = origSyllables[i];
+    const ms = memeSylls[i];
+    const t1 = orig ? msToTime(orig.start) : '??:??.???';
+    const t2 = orig ? msToTime(orig.end) : '??:??.???';
+    const o = orig ? orig.text.padEnd(8) : '—'.padEnd(8);
+    const m = ms ? ms.toUpperCase() : '—';
+    txt += `${t1}  →  ${t2} | ${o}| ${m}\n`;
+  }
+
+  document.getElementById('exportText').textContent = txt;
+
+  // SRT export
+  let srt = '';
+  const memeWords = meme.trim().split(/\s+/);
+  let wIdx = 0, wSyllStart = 0;
+  let srtIdx = 1;
+
+  // Group syllables back to words for SRT
+  for (const word of memeWords) {
+    const wsylls = syllabifyWord(word);
+    const firstOrig = origSyllables[wSyllStart];
+    const lastOrig = origSyllables[Math.min(wSyllStart + wsylls.length - 1, origSyllables.length - 1)];
+    if (firstOrig) {
+      srt += `${srtIdx}\n`;
+      srt += `${msToSRT(firstOrig.start)} --> ${msToSRT(lastOrig ? lastOrig.end : firstOrig.end)}\n`;
+      srt += word.toUpperCase() + '\n\n';
+      srtIdx++;
+    }
+    wSyllStart += wsylls.length;
+  }
+
+  document.getElementById('exportSRT').textContent = srt;
+
+  showSection('sec-export');
+  setStep(4);
+}
+
+function copyText() {
+  navigator.clipboard.writeText(document.getElementById('exportText').textContent);
+  alert('Copiado!');
+}
+
+function downloadSRT() {
+  const content = document.getElementById('exportSRT').textContent;
+  download('meme_sync.srt', content, 'text/plain');
+}
+
+function downloadCSV() {
+  const meme = document.getElementById('memeText').value.trim();
+  const memeSylls = syllabifyText(meme);
+  const totalRows = Math.max(origSyllables.length, memeSylls.length);
+  let csv = 'inicio_ms,fim_ms,inicio_timecode,fim_timecode,silaba_orig,silaba_meme\n';
+  for (let i = 0; i < totalRows; i++) {
+    const orig = origSyllables[i];
+    const ms = memeSylls[i];
+    csv += `${orig?.start ?? ''},${orig?.end ?? ''},${orig ? msToTime(orig.start) : ''},${orig ? msToTime(orig.end) : ''},${orig?.text ?? ''},${ms ?? ''}\n`;
+  }
+  download('meme_sync.csv', csv, 'text/csv');
+}
+
+function download(filename, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = filename;
+  a.click();
+}
+
+// ──────────────────────────────────────────────
+// UTILS
+// ──────────────────────────────────────────────
+function msToTime(ms) {
+  const s = ms / 1000;
+  const min = Math.floor(s / 60);
+  const sec = (s % 60).toFixed(3);
+  return `${String(min).padStart(2,'0')}:${sec.padStart(6,'0')}`;
+}
+
+function msToSRT(ms) {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  const c = ms % 1000;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(c).padStart(3,'0')}`;
+}
+</script>
+</body>
+</html>

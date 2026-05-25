@@ -546,24 +546,17 @@ function showExport() {
 
   document.getElementById('exportText').textContent = txt;
 
-  // SRT export
-  let srt = '';
-  const memeWords = meme.trim().split(/\s+/);
-  let wIdx = 0, wSyllStart = 0;
+  // SRT export — uma entrada por sílaba
+  let srt = "";
   let srtIdx = 1;
 
-  // Group syllables back to words for SRT
-  for (const word of memeWords) {
-    const wsylls = syllabifyWord(word);
-    const firstOrig = origSyllables[wSyllStart];
-    const lastOrig = origSyllables[Math.min(wSyllStart + wsylls.length - 1, origSyllables.length - 1)];
-    if (firstOrig) {
-      srt += `${srtIdx}\n`;
-      srt += `${msToSRT(firstOrig.start)} --> ${msToSRT(lastOrig ? lastOrig.end : firstOrig.end)}\n`;
-      srt += word.toUpperCase() + '\n\n';
-      srtIdx++;
-    }
-    wSyllStart += wsylls.length;
+  for (let i = 0; i < memeSylls.length; i++) {
+    const orig = origSyllables[i];
+    if (!orig) break;
+    srt += srtIdx + "\n";
+    srt += msToSRT(orig.start) + " --> " + msToSRT(orig.end) + "\n";
+    srt += memeSylls[i].toUpperCase() + "\n\n";
+    srtIdx++;
   }
 
   document.getElementById('exportSRT').textContent = srt;

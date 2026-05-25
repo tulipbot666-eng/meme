@@ -127,13 +127,13 @@ pre{background:var(--s2);border:1px solid var(--border);border-radius:6px;paddin
   <h2>Upload da música</h2>
   <div class="sub">Arrasta o MP3 ou clica pra escolher — AssemblyAI vai transcrever com timestamps</div>
 
-  <div class="upload-zone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-    <input type="file" id="fileInput" accept="audio/*">
+  <label class="upload-zone" id="dropzone" for="fileInput" style="display:block;cursor:pointer">
+    <input type="file" id="fileInput" accept="audio/*,video/*,.mp3,.mp4,.wav,.ogg,.m4a,.aac,.flac,.webm,.mkv" style="position:absolute;opacity:0;width:1px;height:1px">
     <div class="upload-icon">🎵</div>
-    <div class="upload-title">Arrasta o áudio aqui</div>
-    <div class="upload-hint">MP3, WAV, M4A, OGG — qualquer áudio funciona</div>
+    <div class="upload-title">Clica aqui pra escolher o arquivo</div>
+    <div class="upload-hint">MP3, MP4, WAV, M4A, OGG, AAC — áudio ou vídeo funciona</div>
     <div class="chosen-file" id="chosenFile"></div>
-  </div>
+  </label>
 
   <div style="margin-top:20px;display:flex;gap:10px;align-items:center">
     <button class="btn btn-green" id="btnTranscribe" onclick="startTranscription()" disabled>

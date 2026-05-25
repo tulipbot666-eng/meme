@@ -282,7 +282,7 @@ async function startTranscription() {
     try {
       uploadRes = await fetch('/api/v2/upload', {
         method: 'POST',
-        ,
+        headers: { 'content-type': 'application/octet-stream' },
         body: arrayBuffer
       });
     } catch (fetchErr) {

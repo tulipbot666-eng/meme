@@ -378,19 +378,16 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // ──────────────────────────────────────────────
 // SYLLABLE ENGINE
 // ──────────────────────────────────────────────
-function syllabifyWord(word) {
+function syllabifyWordPT(word) {
   const clean = word.toLowerCase().replace(/[^a-záàâãéèêíìîóòôõuúùûçü]/g, '');
   if (!clean) return [word];
   const vowels = new Set('aáàâãeéèêiíìîoóòôõuúùûç'.split(''));
   const isV = c => vowels.has(c);
-
   const vi = [];
   for (let i = 0; i < clean.length; i++) if (isV(clean[i])) vi.push(i);
   if (vi.length <= 1) return [clean];
-
   const diphthongs = new Set(['ai','ei','oi','ui','au','eu','ou','ia','ie','io','iu','ua','ue','uo','ao','ãe','ão','õe']);
   const splits = [];
-
   for (let i = 0; i < vi.length - 1; i++) {
     const v1 = vi[i], v2 = vi[i+1];
     const gap = v2 - v1 - 1;
@@ -398,14 +395,13 @@ function syllabifyWord(word) {
       const pair = clean[v1] + clean[v2];
       if (!diphthongs.has(pair)) splits.push(v2);
     } else if (gap === 1) {
-      splits.push(v1 + 1); // V-CV → split before C
+      splits.push(v1 + 1);
     } else if (gap === 2) {
-      splits.push(v1 + 2); // V-CCV → VC-CV
+      splits.push(v1 + 2);
     } else {
       splits.push(v1 + Math.ceil(gap / 2) + 1);
     }
   }
-
   const sylls = [];
   let start = 0;
   for (const s of splits) {
@@ -416,12 +412,44 @@ function syllabifyWord(word) {
   return sylls.filter(Boolean);
 }
 
-function syllabifyText(text) {
-  return text.trim().split(/\s+/).flatMap(w => syllabifyWord(w));
+function syllabifyWordEN(word) {
+  const clean = word.toLowerCase().replace(/[^a-z]/g, '');
+  if (!clean) return [word];
+  // colapsa ditongos/trigrafos comuns do inglês em 1 vogal
+  let temp = clean
+    .replace(/[^aeiouy]e$/, 'X') // e mudo no fim (make, where, are)
+    .replace(/ou|oo|ee|ea|ai|ay|oa|oi|oy|au|aw|ew|ie|ei|ue|ui/g, 'A');
+  // conta grupos vocálicos
+  let count = 0;
+  let prevWasVowel = false;
+  for (const c of temp) {
+    const isV = 'aeiouyA'.includes(c);
+    if (isV && !prevWasVowel) count++;
+    prevWasVowel = isV;
+  }
+  count = Math.max(1, count);
+  if (count === 1) return [clean];
+  // divide a palavra em `count` pedaços aproximados
+  const chunkSize = Math.ceil(clean.length / count);
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    const chunk = clean.slice(i * chunkSize, (i + 1) * chunkSize);
+    if (chunk) result.push(chunk);
+  }
+  return result.length ? result : [clean];
+}
+
+function syllabifyWord(word, lang) {
+  const l = lang || (document.getElementById('musicLang') ? document.getElementById('musicLang').value : 'pt');
+  return l === 'en' ? syllabifyWordEN(word) : syllabifyWordPT(word);
+}
+
+function syllabifyText(text, lang) {
+  return text.trim().split(/\s+/).flatMap(w => syllabifyWord(w, lang));
 }
 
 function countSyllables(text) {
-  return syllabifyText(text).length;
+  return syllabifyText(text, 'pt').length;
 }
 
 // ──────────────────────────────────────────────
@@ -432,7 +460,8 @@ function buildOrigSyllables() {
   if (!transcriptData || !transcriptData.words) return;
 
   for (const word of transcriptData.words) {
-    const sylls = syllabifyWord(word.text);
+    const lang = document.getElementById('musicLang').value;
+    const sylls = syllabifyWord(word.text, lang);
     const dur = (word.end - word.start) / sylls.length;
     sylls.forEach((s, i) => {
       origSyllables.push({
@@ -482,7 +511,7 @@ function updateAlignment() {
     return;
   }
 
-  const memeSylls = syllabifyText(meme);
+  const memeSylls = syllabifyText(meme, 'pt');
   const origLen = origSyllables.length;
   const memeLen = memeSylls.length;
 
@@ -536,7 +565,7 @@ function showExport() {
   const meme = document.getElementById('memeText').value.trim();
   if (!meme) { alert('Escreve o texto do meme antes de exportar!'); return; }
 
-  const memeSylls = syllabifyText(meme);
+  const memeSylls = syllabifyText(meme, 'pt');
   const totalRows = Math.max(origSyllables.length, memeSylls.length);
 
   // Text export
@@ -591,7 +620,7 @@ function downloadSRT() {
 
 function downloadCSV() {
   const meme = document.getElementById('memeText').value.trim();
-  const memeSylls = syllabifyText(meme);
+  const memeSylls = syllabifyText(meme, 'pt');
   const totalRows = Math.max(origSyllables.length, memeSylls.length);
   let csv = 'inicio_ms,fim_ms,inicio_timecode,fim_timecode,silaba_orig,silaba_meme\n';
   for (let i = 0; i < totalRows; i++) {

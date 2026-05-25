@@ -167,7 +167,7 @@ pre{background:var(--s2);border:1px solid var(--border);border-radius:6px;paddin
 <!-- SECTION 3: MEME EDITOR -->
 <div class="section" id="sec-editor">
   <h2>Letra original ↔ Seu meme</h2>
-  <div class="sub">Escreve o texto do meme — o sistema vai alinhar silabicamente com a música</div>
+  <div class="sub">Escreve o meme com <strong style="color:var(--yellow)">uma linha por frase da música</strong> — o sistema detecta as pausas e alinha automaticamente</div>
 
   <div id="wordsDisplay" class="words-wrap" style="margin-top:8px"></div>
 
@@ -180,7 +180,7 @@ pre{background:var(--s2);border:1px solid var(--border);border-radius:6px;paddin
     </div>
     <div class="panel">
       <div class="panel-label">😂 Seu texto do meme</div>
-      <textarea id="memeText" placeholder="Digite aqui o texto do meme...&#10;&#10;Ex: Eu comi a galinha do vizinho hoje de manhã" oninput="updateAlignment()"></textarea>
+      <textarea id="memeText" placeholder="Uma linha por frase da música&#10;&#10;Ex:&#10;seu zé ruela&#10;cadê você&#10;a gente tem que trabalhar" oninput="updateAlignment()"></textarea>
       <div style="margin-top:8px;font-size:11px;font-family:'Space Mono',monospace;color:var(--muted)" id="syllCount"></div>
     </div>
   </div>
@@ -502,6 +502,24 @@ function renderEditor() {
 // ──────────────────────────────────────────────
 // ALIGNMENT
 // ──────────────────────────────────────────────
+// Detecta frases na música agrupando palavras por pausas
+function detectPhrases(words, gapMs = 400) {
+  const phrases = [];
+  if (!words || !words.length) return phrases;
+  let current = [words[0]];
+  for (let i = 1; i < words.length; i++) {
+    const gap = words[i].start - words[i-1].end;
+    if (gap >= gapMs) {
+      phrases.push(current);
+      current = [words[i]];
+    } else {
+      current.push(words[i]);
+    }
+  }
+  phrases.push(current);
+  return phrases;
+}
+
 function updateAlignment() {
   const meme = document.getElementById('memeText').value.trim();
   if (!meme) {
@@ -511,44 +529,54 @@ function updateAlignment() {
     return;
   }
 
-  const memeSylls = syllabifyText(meme, 'pt');
+  const memeLines = meme.split(/\n/).map(l => l.trim()).filter(Boolean);
+  const origPhrases = detectPhrases(transcriptData.words || []);
+
+  // contagem total de sílabas pra comparação
+  const memeSylls = syllabifyText(meme.replace(/\n/g, ' '), 'pt');
   const origLen = origSyllables.length;
   const memeLen = memeSylls.length;
+  document.getElementById('syllCount').textContent = `${memeLen} sílabas no meme / ${origLen} na música — ${memeLines.length} linha(s) / ${origPhrases.length} frase(s)`;
 
-  document.getElementById('syllCount').textContent = `${memeLen} sílabas no meme / ${origLen} na música`;
-
-  // Warning
   const diff = memeLen - origLen;
   if (Math.abs(diff) > 3) {
     document.getElementById('matchWarning').innerHTML = diff > 0
-      ? `<div class="warn">⚠ Seu meme tem ${diff} sílaba(s) a mais que a música. Tente encurtar ou vai ficar fora do ritmo.</div>`
-      : `<div class="warn">⚠ Seu meme tem ${Math.abs(diff)} sílaba(s) a menos. Tente adicionar mais sílabas.</div>`;
+      ? `<div class="warn">⚠ Meme tem ${diff} sílaba(s) a mais. Tente encurtar.</div>`
+      : `<div class="warn">⚠ Meme tem ${Math.abs(diff)} sílaba(s) a menos. Tente alongar.</div>`;
   } else {
-    document.getElementById('matchWarning').innerHTML = `<div class="ok-badge">✓ Contagem próxima! Diff: ${diff > 0 ? '+' : ''}${diff} sílabas — tá bom pra encaixar</div>`;
+    document.getElementById('matchWarning').innerHTML = `<div class="ok-badge">✓ Contagem próxima! Diff: ${diff > 0 ? '+' : ''}${diff} sílabas</div>`;
   }
 
-  // Build alignment
-  const totalRows = Math.max(origLen, memeLen);
+  // Aviso se número de linhas != frases
+  if (memeLines.length !== origPhrases.length) {
+    document.getElementById('matchWarning').innerHTML +=
+      `<div class="warn" style="margin-top:6px">⚠ Música tem ${origPhrases.length} frase(s) mas seu meme tem ${memeLines.length} linha(s). Ajuste as quebras de linha pra bater.</div>`;
+  }
+
+  // Tabela: frase da música <-> linha do meme
+  const totalRows = Math.max(origPhrases.length, memeLines.length);
   const rows = document.getElementById('alignRows');
   rows.innerHTML = '';
 
   for (let i = 0; i < totalRows; i++) {
-    const orig = origSyllables[i];
-    const memeSyll = memeSylls[i];
+    const phrase = origPhrases[i];
+    const memeLine = memeLines[i];
 
     const row = document.createElement('div');
     row.className = 'align-row';
 
-    const origCell = orig
-      ? `<div class="orig-syll">${orig.text}<span style="font-size:10px;color:var(--muted);margin-left:4px;font-family:'Space Mono',monospace">(${orig.wordText})</span></div>`
+    const origText = phrase ? phrase.map(w => w.text).join(' ') : null;
+    const t1 = phrase ? msToTime(phrase[0].start) : null;
+    const t2 = phrase ? msToTime(phrase[phrase.length-1].end) : null;
+
+    const origCell = origText
+      ? `<div class="orig-syll">${origText}</div>`
       : `<div class="orig-syll unmatched">—</div>`;
-
-    const timeCell = orig
-      ? `<div class="time-cell">${msToTime(orig.start)} → ${msToTime(orig.end)}</div>`
+    const timeCell = t1
+      ? `<div class="time-cell">${t1} → ${t2}</div>`
       : `<div class="time-cell" style="color:var(--muted)">—</div>`;
-
-    const memeCell = memeSyll
-      ? `<div class="meme-syll">${memeSyll.toUpperCase()}</div>`
+    const memeCell = memeLine
+      ? `<div class="meme-syll">${memeLine.toUpperCase()}</div>`
       : `<div class="meme-syll unmatched">—</div>`;
 
     row.innerHTML = origCell + timeCell + memeCell;
@@ -565,45 +593,56 @@ function showExport() {
   const meme = document.getElementById('memeText').value.trim();
   if (!meme) { alert('Escreve o texto do meme antes de exportar!'); return; }
 
-  const memeSylls = syllabifyText(meme, 'pt');
-  const totalRows = Math.max(origSyllables.length, memeSylls.length);
+  const memeLines = meme.split(/\n/).map(l => l.trim()).filter(Boolean);
+  const origPhrases = detectPhrases(transcriptData.words || []);
 
-  // Text export
+  // Text export — frase por frase
   let txt = 'MEMESYNC — GUIA DE CORTES PARA VEGAS PRO\n';
-  txt += '='.repeat(50) + '\n';
-  txt += `Música transcrita: ${transcriptData.text?.substring(0,80)}...\n`;
-  txt += `Meme: ${meme}\n`;
-  txt += '='.repeat(50) + '\n\n';
-  txt += 'INÍCIO    →  FIM       | ORIG    | MEME\n';
-  txt += '-'.repeat(50) + '\n';
+  txt += '='.repeat(60) + '\n';
+  txt += `Música: ${transcriptData.text?.substring(0,80)}...\n`;
+  txt += `Meme:\n${meme}\n`;
+  txt += '='.repeat(60) + '\n\n';
+  txt += 'INÍCIO    →  FIM       | ORIG (frase)            | MEME (linha)\n';
+  txt += '-'.repeat(60) + '\n';
 
+  const totalRows = Math.max(origPhrases.length, memeLines.length);
   for (let i = 0; i < totalRows; i++) {
-    const orig = origSyllables[i];
-    const ms = memeSylls[i];
-    const t1 = orig ? msToTime(orig.start) : '??:??.???';
-    const t2 = orig ? msToTime(orig.end) : '??:??.???';
-    const o = orig ? orig.text.padEnd(8) : '—'.padEnd(8);
-    const m = ms ? ms.toUpperCase() : '—';
+    const phrase = origPhrases[i];
+    const ml = memeLines[i];
+    const t1 = phrase ? msToTime(phrase[0].start) : '??:??.???';
+    const t2 = phrase ? msToTime(phrase[phrase.length-1].end) : '??:??.???';
+    const o = phrase ? phrase.map(w => w.text).join(' ').substring(0,22).padEnd(22) : '—'.padEnd(22);
+    const m = ml ? ml.toUpperCase() : '—';
     txt += `${t1}  →  ${t2} | ${o}| ${m}\n`;
   }
-
   document.getElementById('exportText').textContent = txt;
 
-  // SRT export — uma entrada por sílaba
+  // SRT — distribui sílabas do meme proporcionalmente dentro de cada frase
   let srt = "";
   let srtIdx = 1;
 
-  for (let i = 0; i < memeSylls.length; i++) {
-    const orig = origSyllables[i];
-    if (!orig) break;
-    srt += srtIdx + "\n";
-    srt += msToSRT(orig.start) + " --> " + msToSRT(orig.end) + "\n";
-    srt += memeSylls[i].toUpperCase() + "\n\n";
-    srtIdx++;
+  for (let pi = 0; pi < memeLines.length; pi++) {
+    const phrase = origPhrases[pi];
+    if (!phrase) break;
+
+    const phraseStart = phrase[0].start;
+    const phraseEnd   = phrase[phrase.length - 1].end;
+    const phraseDur   = phraseEnd - phraseStart;
+
+    const sylls = syllabifyText(memeLines[pi], 'pt');
+    const durPerSyll = phraseDur / sylls.length;
+
+    sylls.forEach((syll, si) => {
+      const start = Math.round(phraseStart + durPerSyll * si);
+      const end   = Math.round(phraseStart + durPerSyll * (si + 1));
+      srt += srtIdx + "\n";
+      srt += msToSRT(start) + " --> " + msToSRT(end) + "\n";
+      srt += syll.toUpperCase() + "\n\n";
+      srtIdx++;
+    });
   }
 
   document.getElementById('exportSRT').textContent = srt;
-
   showSection('sec-export');
   setStep(4);
 }

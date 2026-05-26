@@ -180,7 +180,11 @@ pre{background:var(--s2);border:1px solid var(--border);border-radius:6px;paddin
     </div>
     <div class="panel">
       <div class="panel-label">😂 Seu texto do meme</div>
-      <textarea id="memeText" placeholder="Uma linha por frase da música&#10;&#10;Ex:&#10;seu zé ruela&#10;cadê você&#10;a gente tem que trabalhar" oninput="updateAlignment()"></textarea>
+      <textarea id="memeText" placeholder="Uma linha por frase da música&#10;&#10;Ex:&#10;tem caminhonete&#10;cartão black&#10;família unida" oninput="updateAlignment()"></textarea>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-green" onclick="encaixarMeme()" id="btnEncaixar" style="font-size:11px;padding:7px 14px">✨ Encaixar no ritmo com IA</button>
+        <span id="encaixarStatus" style="font-size:10px;font-family:'Space Mono',monospace;color:var(--muted)"></span>
+      </div>
       <div style="margin-top:8px;font-size:11px;font-family:'Space Mono',monospace;color:var(--muted)" id="syllCount"></div>
     </div>
   </div>
@@ -672,6 +676,76 @@ function showExport() {
 function copyText() {
   navigator.clipboard.writeText(document.getElementById('exportText').textContent);
   alert('Copiado!');
+}
+
+async function encaixarMeme() {
+  const meme = document.getElementById('memeText').value.trim();
+  if (!meme) { alert('Escreve o texto do meme primeiro!'); return; }
+  if (!transcriptData) { alert('Transcreve a música primeiro!'); return; }
+
+  const btn = document.getElementById('btnEncaixar');
+  const status = document.getElementById('encaixarStatus');
+  btn.disabled = true;
+  btn.textContent = '⏳ Processando...';
+  status.textContent = '';
+
+  const origPhrases = detectPhrases(transcriptData.words || []);
+  const musicLang = document.getElementById('musicLang').value;
+
+  // Monta info das frases com contagem de sílabas
+  const frasesInfo = origPhrases.map((phrase, i) => {
+    const texto = phrase.map(w => w.text).join(' ');
+    const sylls = phrase.flatMap(w => syllabifyWord(w.text, musicLang));
+    return `Frase ${i+1}: "${texto}" — ${sylls.length} sílabas (${sylls.join('-')})`;
+  }).join('\n');
+
+  const prompt = `Você é um especialista em fazer memes musicais em português brasileiro.
+
+A música tem ${origPhrases.length} frases com as seguintes contagens de sílabas:
+${frasesInfo}
+
+O usuário quer usar este texto de meme:
+"${meme}"
+
+Sua tarefa: reescreva o texto do meme em português brasileiro de forma que:
+1. Mantenha o sentido/piada original do texto do usuário
+2. Cada linha do resultado corresponda a uma frase da música
+3. Cada linha tenha EXATAMENTE o mesmo número de sílabas que a frase correspondente da música
+4. O texto seja engraçado e natural em português
+5. Use gírias, palavrões leves e linguagem informal se necessário para encaixar as sílabas
+
+Responda APENAS com o texto do meme, uma linha por frase, sem explicações, sem numeração, sem nada mais.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const data = await res.json();
+    const texto = data.content?.find(b => b.type === 'text')?.text?.trim();
+
+    if (texto) {
+      document.getElementById('memeText').value = texto;
+      updateAlignment();
+      status.textContent = '✓ Encaixado!';
+      status.style.color = 'var(--green)';
+    } else {
+      status.textContent = '⚠ Erro na resposta da IA';
+      status.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    status.textContent = '⚠ Erro: ' + e.message;
+    status.style.color = 'var(--red)';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '✨ Encaixar no ritmo com IA';
 }
 
 function downloadSRT() {

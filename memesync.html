@@ -539,22 +539,12 @@ function updateAlignment() {
   const memeLen = memeSylls.length;
   document.getElementById('syllCount').textContent = `${memeLen} sílabas no meme / ${origLen} na música — ${memeLines.length} linha(s) / ${origPhrases.length} frase(s)`;
 
-  const diff = memeLen - origLen;
-  if (Math.abs(diff) > 3) {
-    document.getElementById('matchWarning').innerHTML = diff > 0
-      ? `<div class="warn">⚠ Meme tem ${diff} sílaba(s) a mais. Tente encurtar.</div>`
-      : `<div class="warn">⚠ Meme tem ${Math.abs(diff)} sílaba(s) a menos. Tente alongar.</div>`;
-  } else {
-    document.getElementById('matchWarning').innerHTML = `<div class="ok-badge">✓ Contagem próxima! Diff: ${diff > 0 ? '+' : ''}${diff} sílabas</div>`;
-  }
+  document.getElementById('matchWarning').innerHTML = '';
 
-  // Aviso se número de linhas != frases
-  if (memeLines.length !== origPhrases.length) {
-    document.getElementById('matchWarning').innerHTML +=
-      `<div class="warn" style="margin-top:6px">⚠ Música tem ${origPhrases.length} frase(s) mas seu meme tem ${memeLines.length} linha(s). Ajuste as quebras de linha pra bater.</div>`;
-  }
+  // sem aviso de linhas — o export distribui automaticamente
 
-  // Tabela: frase da música <-> linha do meme
+  // Tabela: frase da música <-> linha do meme, com sílabas lado a lado
+  const musicLang = document.getElementById('musicLang').value;
   const totalRows = Math.max(origPhrases.length, memeLines.length);
   const rows = document.getElementById('alignRows');
   rows.innerHTML = '';
@@ -565,22 +555,43 @@ function updateAlignment() {
 
     const row = document.createElement('div');
     row.className = 'align-row';
+    row.style.cssText = 'display:flex;flex-direction:column;gap:6px;padding:10px 0;border-bottom:1px solid var(--border)';
 
     const origText = phrase ? phrase.map(w => w.text).join(' ') : null;
     const t1 = phrase ? msToTime(phrase[0].start) : null;
     const t2 = phrase ? msToTime(phrase[phrase.length-1].end) : null;
 
-    const origCell = origText
-      ? `<div class="orig-syll">${origText}</div>`
-      : `<div class="orig-syll unmatched">—</div>`;
-    const timeCell = t1
-      ? `<div class="time-cell">${t1} → ${t2}</div>`
-      : `<div class="time-cell" style="color:var(--muted)">—</div>`;
-    const memeCell = memeLine
-      ? `<div class="meme-syll">${memeLine.toUpperCase()}</div>`
-      : `<div class="meme-syll unmatched">—</div>`;
+    // Sílabas da música (inglês ou PT)
+    const origSyllList = phrase
+      ? phrase.flatMap(w => syllabifyWord(w.text, musicLang))
+      : [];
 
-    row.innerHTML = origCell + timeCell + memeCell;
+    // Sílabas do meme (PT)
+    const memeSyllList = memeLine ? syllabifyText(memeLine, 'pt') : [];
+
+    const maxSylls = Math.max(origSyllList.length, memeSyllList.length);
+
+    // Cabeçalho da frase
+    const header = `<div style="display:flex;justify-content:space-between;font-size:10px;font-family:'Space Mono',monospace;color:var(--muted)">
+      <span>${origText ? origText.toUpperCase() : '—'}</span>
+      <span>${t1 ? t1 + ' → ' + t2 : ''}</span>
+      <span style="color:var(--yellow)">${memeLine ? memeLine.toUpperCase() : '—'}</span>
+    </div>`;
+
+    // Grade de sílabas lado a lado
+    let syllGrid = '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">';
+    for (let si = 0; si < maxSylls; si++) {
+      const os = origSyllList[si];
+      const ms = memeSyllList[si];
+      syllGrid += `<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;background:var(--s2);border:1px solid var(--border);border-radius:5px;padding:4px 6px;gap:2px">
+        <span style="font-size:10px;font-family:'Space Mono',monospace;color:var(--blue)">${os ? os.toUpperCase() : '<span style=color:var(--muted)>—</span>'}</span>
+        <span style="font-size:8px;color:var(--muted)">↕</span>
+        <span style="font-size:10px;font-family:'Space Mono',monospace;color:var(--yellow);font-weight:700">${ms ? ms.toUpperCase() : '<span style=color:var(--muted)>—</span>'}</span>
+      </div>`;
+    }
+    syllGrid += '</div>';
+
+    row.innerHTML = header + syllGrid;
     rows.appendChild(row);
   }
 
@@ -606,10 +617,13 @@ function showExport() {
   txt += 'INÍCIO    →  FIM       | ORIG (frase)            | MEME (linha)\n';
   txt += '-'.repeat(60) + '\n';
 
+  // Distribui linhas do meme nas frases da música automaticamente
   const totalRows = Math.max(origPhrases.length, memeLines.length);
   for (let i = 0; i < totalRows; i++) {
     const phrase = origPhrases[i];
-    const ml = memeLines[i];
+    // mapeia linha do meme proporcionalmente à frase
+    const memeIdx = Math.floor(i * memeLines.length / Math.max(origPhrases.length, 1));
+    const ml = memeLines[memeIdx] || memeLines[memeLines.length-1];
     const t1 = phrase ? msToTime(phrase[0].start) : '??:??.???';
     const t2 = phrase ? msToTime(phrase[phrase.length-1].end) : '??:??.???';
     const o = phrase ? phrase.map(w => w.text).join(' ').substring(0,22).padEnd(22) : '—'.padEnd(22);
@@ -618,30 +632,37 @@ function showExport() {
   }
   document.getElementById('exportText').textContent = txt;
 
-  // SRT — distribui sílabas do meme proporcionalmente dentro de cada frase
+  // SRT — distribui linhas do meme nas frases automaticamente
+  // Se número de linhas != frases, redistribui proporcionalmente
   let srt = "";
   let srtIdx = 1;
 
-  for (let pi = 0; pi < memeLines.length; pi++) {
-    const phrase = origPhrases[pi];
-    if (!phrase) break;
+  // Calcula tempo total da música
+  const totalMusicMs = origPhrases.length
+    ? origPhrases[origPhrases.length-1][origPhrases[origPhrases.length-1].length-1].end - origPhrases[0][0].start
+    : 0;
 
-    const phraseStart = phrase[0].start;
-    const phraseEnd   = phrase[phrase.length - 1].end;
-    const phraseDur   = phraseEnd - phraseStart;
+  // Mapeia cada linha do meme pra uma fatia de tempo proporcional
+  const totalMemeSylls = memeLines.reduce((acc, l) => acc + syllabifyText(l, 'pt').length, 0);
 
-    const sylls = syllabifyText(memeLines[pi], 'pt');
-    const durPerSyll = phraseDur / sylls.length;
+  // Achata todas as palavras da música em ordem
+  const allWords = (transcriptData.words || []);
+  const musicStart = allWords.length ? allWords[0].start : 0;
+  const musicEnd   = allWords.length ? allWords[allWords.length-1].end : 0;
+  const musicDur   = musicEnd - musicStart;
 
-    sylls.forEach((syll, si) => {
-      const start = Math.round(phraseStart + durPerSyll * si);
-      const end   = Math.round(phraseStart + durPerSyll * (si + 1));
-      srt += srtIdx + "\n";
-      srt += msToSRT(start) + " --> " + msToSRT(end) + "\n";
-      srt += syll.toUpperCase() + "\n\n";
-      srtIdx++;
-    });
-  }
+  // Distribui sílabas do meme linearmente no tempo da música
+  const allMemeSylls = memeLines.flatMap(l => syllabifyText(l, 'pt'));
+  const durPerSyll = totalMemeSylls > 0 ? musicDur / totalMemeSylls : 0;
+
+  allMemeSylls.forEach((syll, si) => {
+    const start = Math.round(musicStart + durPerSyll * si);
+    const end   = Math.round(musicStart + durPerSyll * (si + 1));
+    srt += srtIdx + "\n";
+    srt += msToSRT(start) + " --> " + msToSRT(end) + "\n";
+    srt += syll.toUpperCase() + "\n\n";
+    srtIdx++;
+  });
 
   document.getElementById('exportSRT').textContent = srt;
   showSection('sec-export');
